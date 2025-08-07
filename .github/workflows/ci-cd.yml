@@ -1,0 +1,83 @@
+﻿name: Infrastructure CI/CD - leadflowx-infrastructure
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'infra/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+
+env:
+  AZURE_RESOURCE_GROUP: leadflowx-rg
+  AZURE_LOCATION: eastus
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate Infrastructure
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Validate Bicep templates
+      run: |
+        az bicep build --file infra/main.bicep
+        echo "Bicep validation successful"
+    
+    - name: Run infrastructure tests
+      run: az bicep build --file main.bicep
+
+  plan:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Preview changes
+      run: |
+        az deployment group what-if \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --template-file infra/main.bicep \
+          --parameters @infra/main.parameters.json
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy infrastructure
+      run: |
+        az deployment group create \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --template-file infra/main.bicep \
+          --parameters @infra/main.parameters.json \
+          --verbose
+    
+    - name: Verify deployment
+      run: |
+        az resource list --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --output table
