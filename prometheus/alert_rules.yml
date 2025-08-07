@@ -1,0 +1,56 @@
+groups:
+  - name: spider_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: source_error_rate > 0.3
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: High error rate for spider {{ $labels.source }}
+          description: Spider {{ $labels.source }} has error rate above 30% for more than 5 minutes
+
+      - alert: LowSuccessRate
+        expr: source_success_rate < 0.7
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Low success rate for spider {{ $labels.source }}
+          description: Spider {{ $labels.source }} has success rate below 70% for more than 5 minutes
+
+      - alert: HighResponseTime
+        expr: source_avg_response_time > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High response time for spider {{ $labels.source }}
+          description: Spider {{ $labels.source }} has average response time above 5 seconds for more than 5 minutes
+
+      - alert: CircuitBreakerOpen
+        expr: spider_circuit_breaker_state{state="open"} == 1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Circuit breaker open for spider {{ $labels.source }}
+          description: Circuit breaker has been open for spider {{ $labels.source }} for more than 15 minutes
+
+      - alert: HighDLQSize
+        expr: spider_dlq_size > 1000
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: High DLQ size for spider {{ $labels.source }}
+          description: Dead Letter Queue size for spider {{ $labels.source }} is above 1000 for more than 30 minutes
+
+      - alert: NoLeadsScraped
+        expr: rate(spider_leads_total[1h]) == 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: No leads being scraped by spider {{ $labels.source }}
+          description: Spider {{ $labels.source }} hasn't scraped any leads in the last hour

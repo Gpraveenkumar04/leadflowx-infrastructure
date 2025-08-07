@@ -1,0 +1,163 @@
+name: Deploy LeadFlowX Scraper to Azure
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'scraper/**'
+      - '.github/workflows/scraper-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      environmentName:
+        description: 'Environment name (dev, staging, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  RESOURCE_GROUP: leadflowx-${{ github.event.inputs.environmentName || 'dev' }}-rg
+  LOCATION: eastus
+  APP_NAME: leadflowx-scraper-${{ github.event.inputs.environmentName || 'dev' }}
+  IMAGE_NAME: leadflowx/scraper
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Create resource group if needed
+      run: |
+        exists=$(az group exists --name ${{ env.RESOURCE_GROUP }})
+        if [ "$exists" = "false" ]; then
+          az group create --name ${{ env.RESOURCE_GROUP }} --location ${{ env.LOCATION }}
+        fi
+      
+    - name: Deploy Bicep to create infrastructure
+      id: deploy_infra
+      uses: azure/arm-deploy@v1
+      with:
+        resourceGroupName: ${{ env.RESOURCE_GROUP }}
+        template: ./scraper/infra/main.bicep
+        parameters: >
+          appName=${{ env.APP_NAME }}
+          location=${{ env.LOCATION }}
+          googleApiKey=${{ secrets.GOOGLE_API_KEY }}
+          kafkaBroker=${{ secrets.KAFKA_BROKER || 'kafka:9092' }}
+          kafkaTopic=${{ secrets.KAFKA_TOPIC || 'lead.raw' }}
+          searchQueries=${{ secrets.SEARCH_QUERIES || 'web design agency,marketing agency,digital agency,social media agency' }}
+          searchLocations=${{ secrets.SEARCH_LOCATIONS || 'San Francisco,Los Angeles,New York' }}
+          containerImage=placeholder
+          
+    - name: Get ACR Login Server
+      id: get_acr
+      run: |
+        ACR_LOGIN_SERVER=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ steps.deploy_infra.outputs.deploymentName }} \
+          --query "properties.outputs.containerRegistryLoginServer.value" \
+          --output tsv)
+        echo "::set-output name=login_server::$ACR_LOGIN_SERVER"
+    
+    - name: ACR Login
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ steps.get_acr.outputs.login_server }}
+        username: ${{ env.APP_NAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+      
+    - name: Build and push container image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./scraper
+        push: true
+        tags: ${{ steps.get_acr.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ github.sha }}, ${{ steps.get_acr.outputs.login_server }}/${{ env.IMAGE_NAME }}:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Update Container App with new image
+      uses: azure/arm-deploy@v1
+      with:
+        resourceGroupName: ${{ env.RESOURCE_GROUP }}
+        template: ./scraper/infra/main.bicep
+        parameters: >
+          appName=${{ env.APP_NAME }}
+          location=${{ env.LOCATION }}
+          containerImage=${{ steps.get_acr.outputs.login_server }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          googleApiKey=${{ secrets.GOOGLE_API_KEY }}
+          kafkaBroker=${{ secrets.KAFKA_BROKER || 'kafka:9092' }}
+          kafkaTopic=${{ secrets.KAFKA_TOPIC || 'lead.raw' }}
+          searchQueries=${{ secrets.SEARCH_QUERIES || 'web design agency,marketing agency,digital agency,social media agency' }}
+          searchLocations=${{ secrets.SEARCH_LOCATIONS || 'San Francisco,Los Angeles,New York' }}
+
+  schedule-scraper:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Create Logic App workflow to schedule scraper
+      run: |
+        # Get the Container App URL
+        CONTAINER_APP_URL=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ needs.build-and-deploy.outputs.deploymentName }} \
+          --query "properties.outputs.containerAppUrl.value" \
+          --output tsv)
+        
+        # Create Logic App for scheduling
+        az logic workflow create \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --location ${{ env.LOCATION }} \
+          --name "schedule-${{ env.APP_NAME }}" \
+          --definition "{
+            \"$schema\": \"https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#\",
+            \"contentVersion\": \"1.0.0.0\",
+            \"parameters\": {},
+            \"triggers\": {
+              \"Recurrence\": {
+                \"recurrence\": {
+                  \"frequency\": \"Day\",
+                  \"interval\": 1,
+                  \"schedule\": {
+                    \"hours\": [\"9\", \"15\", \"21\"],
+                    \"minutes\": [\"0\"]
+                  },
+                  \"timeZone\": \"Eastern Standard Time\"
+                },
+                \"type\": \"Recurrence\"
+              }
+            },
+            \"actions\": {
+              \"HTTP\": {
+                \"runAfter\": {},
+                \"type\": \"Http\",
+                \"inputs\": {
+                  \"method\": \"GET\",
+                  \"uri\": \"https://$CONTAINER_APP_URL/run-scraper\",
+                  \"headers\": {
+                    \"Content-Type\": \"application/json\"
+                  }
+                }
+              }
+            }
+          }"

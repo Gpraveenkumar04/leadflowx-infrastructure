@@ -1,0 +1,49 @@
+# Alert rules for Prometheus Alertmanager
+
+groups:
+- name: spider_alerts
+  rules:
+  - alert: HighErrorRate
+    expr: rate(spider_leads_total{status="error"}[5m]) / rate(spider_leads_total{status="success"}[5m]) > 0.3
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: High error rate for {{ $labels.spider }}
+      description: Spider {{ $labels.spider }} has a high error rate (> 30%)
+      
+  - alert: LowLeadVolume
+    expr: rate(spider_leads_total{status="success"}[30m]) < 1
+    for: 30m
+    labels:
+      severity: warning
+    annotations:
+      summary: Low lead volume for {{ $labels.spider }}
+      description: Spider {{ $labels.spider }} is generating fewer than 1 lead per minute
+      
+  - alert: SpiderStalled
+    expr: rate(spider_scrape_duration_seconds_count[15m]) == 0
+    for: 15m
+    labels:
+      severity: critical
+    annotations:
+      summary: Spider {{ $labels.spider }} has stalled
+      description: No scraping activity detected for {{ $labels.spider }} in the last 15 minutes
+      
+  - alert: HighLatency
+    expr: rate(spider_scrape_duration_seconds_sum[5m]) / rate(spider_scrape_duration_seconds_count[5m]) > 30
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: High latency for {{ $labels.spider }}
+      description: Spider {{ $labels.spider }} is experiencing high latency (>30s per scrape)
+      
+  - alert: ProxyFailureRate
+    expr: rate(spider_proxy_failures_total[5m]) / rate(spider_proxy_requests_total[5m]) > 0.2
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: High proxy failure rate
+      description: More than 20% of proxy requests are failing

@@ -1,0 +1,435 @@
+{
+  "info": {
+    "name": "LeadFlowX Day 2 - Ingestion & Verification Pipeline",
+    "description": "Complete API collection for testing LeadFlowX Day 2 implementation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "leadflowx-api-key-2025",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "leadflowx-api-key-2025",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Monitoring",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["metrics"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verifier Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:9090/metrics",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "9090",
+              "path": ["metrics"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Lead Ingestion",
+      "item": [
+        {
+          "name": "Valid Lead - Complete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"company\": \"TechCorp Inc\",\n  \"website\": \"https://techcorp.com\",\n  \"phone\": \"+1-555-123-4567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Valid Lead - Minimal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane.smith@startup.io\",\n  \"company\": \"Startup Innovations\",\n  \"website\": \"https://startup.io\",\n  \"phone\": \"+1-555-987-6543\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Duplicate Lead Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"company\": \"TechCorp Inc\",\n  \"website\": \"https://techcorp.com\",\n  \"phone\": \"+1-555-123-4567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validation Tests",
+      "item": [
+        {
+          "name": "Invalid Email Format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid User\",\n  \"email\": \"invalid-email\",\n  \"company\": \"Test Company\",\n  \"website\": \"https://test.com\",\n  \"phone\": \"+1-555-000-0000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Missing Required Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Incomplete User\",\n  \"email\": \"incomplete@test.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Website URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad URL User\",\n  \"email\": \"user@test.com\",\n  \"company\": \"Test Company\",\n  \"website\": \"not-a-url\",\n  \"phone\": \"+1-555-000-0000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication Tests",
+      "item": [
+        {
+          "name": "No Authorization Header",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Unauthorized User\",\n  \"email\": \"unauth@test.com\",\n  \"company\": \"Test Company\",\n  \"website\": \"https://test.com\",\n  \"phone\": \"+1-555-000-0000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid-api-key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Key User\",\n  \"email\": \"invalid@test.com\",\n  \"company\": \"Test Company\",\n  \"website\": \"https://test.com\",\n  \"phone\": \"+1-555-000-0000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bulk Test Data",
+      "item": [
+        {
+          "name": "Test Lead 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Johnson\",\n  \"email\": \"alice.johnson@innovate.com\",\n  \"company\": \"Innovate Solutions\",\n  \"website\": \"https://innovate.com\",\n  \"phone\": \"+1-555-101-2001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test Lead 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bob Wilson\",\n  \"email\": \"bob.wilson@datatech.org\",\n  \"company\": \"DataTech Corp\",\n  \"website\": \"https://datatech.org\",\n  \"phone\": \"+1-555-202-3002\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test Lead 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Charlie Brown\",\n  \"email\": \"charlie.brown@futuretech.net\",\n  \"company\": \"FutureTech Industries\",\n  \"website\": \"https://futuretech.net\",\n  \"phone\": \"+1-555-303-4003\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/lead",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "lead"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin UI & External Services",
+      "item": [
+        {
+          "name": "Admin UI Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activepieces Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3001",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3001"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "N8N Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5678",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5678"
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

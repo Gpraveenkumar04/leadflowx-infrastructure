@@ -1,0 +1,14 @@
+name: leadflowx-scraper
+metadata:
+  template: leadflowx-scraper@0.0.1-beta
+services:
+  scraper:
+    project: ./scraper
+    language: python
+    host: containerapp
+    docker:
+      path: ./scraper/Dockerfile
+      context: ./scraper
+infra:
+  provider: bicep
+  path: ./scraper/infra

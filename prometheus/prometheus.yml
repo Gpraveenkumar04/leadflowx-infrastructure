@@ -1,0 +1,52 @@
+# Monitoring Configuration
+
+## Data Sources
+- job_name: leadflowx
+  static_configs:
+    - targets:
+      - 'scraper:9090'  # Scraper metrics
+      - 'ingestion-api:9090'  # Ingestion API metrics
+      - 'scorer:9090'  # Scorer metrics
+      - 'verifier:9090'  # Verifier metrics
+
+# Alert Rules
+groups:
+  - name: scraper_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(spider_error_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in scraper"
+          description: "Scraper error rate is above 10% for 5 minutes"
+
+      - alert: CircuitBreakerOpen
+        expr: spider_circuit_breaker_state{state="open"} > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Spider circuit breaker has been triggered"
+
+  - name: system_alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / container_memory_usage_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Container memory usage is above 90%"
+
+      - alert: SlowResponseTime
+        expr: rate(request_duration_seconds_sum[5m]) / rate(request_duration_seconds_count[5m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response times"
+          description: "Average response time is above 2 seconds"
